@@ -7,6 +7,8 @@
 ######## Example : python extract_exonic_sequences.py PRKN_pos.rna hg38.fa PRKN_RNA.fasta
 
 
+#!/usr/bin/env python3
+
 import sys
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -28,23 +30,29 @@ def parse_annotations(annotation_string):
     
     return elements
 
-def get_exonic_regions(elements):
+def get_exonic_regions(elements, strand):
     """Extract only exonic regions (starting with 'E') and calculate their coordinates"""
     exonic_regions = []
     
     for i, (element_name, start_pos) in enumerate(elements):
         if element_name.startswith('E'):
-            # Find the end position (start of next element or use a default)
+            # Find the end position (start of next element)
             if i + 1 < len(elements):
                 end_pos = elements[i + 1][1]
             else:
-                # For the last element, we need to estimate the end
-                # This is a limitation - you might want to provide end coordinates
-                end_pos = start_pos + 20  # Default assumption
-                print(f"Warning: No end coordinate for last element {element_name}, using +20bp")
+                # For the last element, estimate a reasonable exon size
+                end_pos = start_pos + 150
+                print(f"Warning: No end coordinate for last element {element_name}, using +150bp")
             
-            exonic_regions.append((element_name, start_pos, end_pos))
+            # Always use coordinates as-is (don't reverse for minus strand here)
+            genomic_start = min(start_pos, end_pos)
+            genomic_end = max(start_pos, end_pos)
+            
+            if genomic_end > genomic_start:  # Valid region
+                exonic_regions.append((element_name, genomic_start, genomic_end))
     
+    # Keep the original order - don't reverse for minus strand
+    # The coordinates should already be in the correct biological order
     return exonic_regions
 
 def extract_sequence_from_fasta(fasta_file, chromosome, start, end):
@@ -94,7 +102,7 @@ def process_rna_file(input_file, hg38_fasta_path, output_file):
                 elements = parse_annotations(annotations)
                 
                 # Get exonic regions
-                exonic_regions = get_exonic_regions(elements)
+                exonic_regions = get_exonic_regions(elements, strand)
                 
                 if not exonic_regions:
                     print(f"Warning: No exonic regions found for {rna_id}")
