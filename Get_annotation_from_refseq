@@ -1,0 +1,5 @@
+
+#Get the HG38.rna annotations from the refseq list 
+
+
+grep -Ff refseq_ids.txt hg38.rna > filtered_hg38.rna
